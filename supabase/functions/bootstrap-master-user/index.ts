@@ -1,5 +1,9 @@
-// Bootstrap master user — only callable with service_role, used to create the initial gerencial user.
-// This function does NOT log the password. It only exists in memory during the request.
+// Bootstrap master user — one-time endpoint to create the initial gerencial user.
+// SECURITY:
+//  - Requires BOOTSTRAP_SECRET from server-side env (Deno.env). NOT exposed to the frontend.
+//  - Rejects execution if ANY user with role 'gerencial' already exists (one-shot guard).
+//  - Never logs the password.
+//  - Supabase Auth handles bcrypt hashing internally.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
@@ -18,38 +22,50 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { username, full_name, password, secret } = body
+    const { username, full_name, password } = body
 
-    // Bootstrap secret - prevents arbitrary user creation via this endpoint
-    // In production this should be a strong secret only known to deployment operator
-    const BOOTSTRAP_SECRET = Deno.env.get('BOOTSTRAP_SECRET') || 'colcom-bootstrap-2024'
-    if (secret !== BOOTSTRAP_SECRET) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
+    // 1) Validate input
     if (!username || !full_name || !password) {
       return new Response(JSON.stringify({ error: 'username, full_name, password are required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-
     if (password.length < 8) {
       return new Response(JSON.stringify({ error: 'Password must be at least 8 characters' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-
     if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(username)) {
       return new Response(JSON.stringify({ error: 'Invalid username format' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
+    // Only the hardcoded master username is allowed via this endpoint
+    if (username !== 'jpuerta') {
+      return new Response(JSON.stringify({ error: 'Invalid bootstrap username' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // Get gerencial role
+    // 2) ONE-SHOT GUARD: if any gerencial user already exists, reject
+    const { data: existingGerencial } = await supabaseAdmin
+      .from('users')
+      .select('id, role:roles!inner(name)')
+      .eq('role.name', 'gerencial')
+      .limit(1)
+
+    if (existingGerencial && existingGerencial.length > 0) {
+      return new Response(JSON.stringify({
+        error: 'Bootstrap already completed. Contact Gerencia to create new users.'
+      }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // 3) Get gerencial role
     const { data: role, error: roleError } = await supabaseAdmin
       .from('roles')
       .select('id')
@@ -62,20 +78,20 @@ serve(async (req) => {
       })
     }
 
-    // Check if username already exists
-    const { data: existing } = await supabaseAdmin
+    // 4) Check if username already exists
+    const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id')
       .eq('username', username)
       .single()
 
-    if (existing) {
+    if (existingUser) {
       return new Response(JSON.stringify({ error: 'Username already exists' }), {
         status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Create user in Supabase Auth (technical internal email, never shown to user)
+    // 5) Create user in Supabase Auth (technical internal email, never shown to user)
     // Supabase Auth handles bcrypt hashing internally
     const internalEmail = `${username}@colcom-trade.internal`
 
@@ -87,14 +103,14 @@ serve(async (req) => {
     })
 
     if (authError || !authUser.user) {
-      return new Response(JSON.stringify({ error: 'Failed to create auth user: ' + (authError?.message || 'unknown') }), {
+      return new Response(JSON.stringify({ error: 'Failed to create auth user' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     const newUserId = authUser.user.id
 
-    // Create profile in public.users with gerencial role
+    // 6) Create profile in public.users with gerencial role
     const { error: profileError } = await supabaseAdmin
       .from('users')
       .insert({
@@ -109,12 +125,12 @@ serve(async (req) => {
     if (profileError) {
       // Rollback: delete auth user
       await supabaseAdmin.auth.admin.deleteUser(newUserId)
-      return new Response(JSON.stringify({ error: 'Failed to create profile: ' + profileError.message }), {
+      return new Response(JSON.stringify({ error: 'Failed to create profile' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Note: password is NOT included in the response
+    // Success — DO NOT include the password in the response
     return new Response(JSON.stringify({
       success: true,
       user: {
@@ -128,7 +144,7 @@ serve(async (req) => {
       status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-  } catch (err) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

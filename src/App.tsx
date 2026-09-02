@@ -6,9 +6,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 import { AppLayout } from "@/components/layout/AppLayout"
+import { useNeedsBootstrap } from "@/hooks/useNeedsBootstrap"
 import Login from "@/pages/Login"
 import Index from "@/pages/Index"
 import UserAdministration from "@/pages/UserAdministration"
+import Bootstrap from "@/pages/Bootstrap"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,90 +21,100 @@ const queryClient = new QueryClient({
   },
 })
 
-function App() {
+/** Shown while checking if bootstrap is needed */
+function AppLoader() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-[#2D6A4F] border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-500">Cargando...</p>
+      </div>
+    </div>
+  )
+}
 
-              {/* Protected routes */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <Index />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+/** Detects bootstrap state and renders the appropriate entry point */
+function AppEntry() {
+  const { needsBootstrap, loading } = useNeedsBootstrap()
 
-              {/* User Administration — only gerencial */}
-              <Route
-                path="/users"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <UserAdministration />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+  if (loading) return <AppLoader />
+  if (needsBootstrap) return <Bootstrap />
 
-              {/* Placeholder routes */}
-              <Route
-                path="/quotes"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <ComingSoon title="Cotizaciones" description="Gestión completa de cotizaciones de exportación" />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/customers"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <ComingSoon title="Clientes" description="Gestión de clientes europeos importadores de aguacate" />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/parameters"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <ComingSoon title="Parámetros" description="Configuración de productos, calibres, tasas y fletes" />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <ComingSoon title="Configuración" description="Configuración general del sistema" />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
+  // Normal flow: login required
+  return <AuthenticatedApp />
+}
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+/** All routes that require authentication */
+function AuthenticatedApp() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Index />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <UserAdministration />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/quotes"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ComingSoon title="Cotizaciones" description="Gestión completa de cotizaciones de exportación" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customers"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ComingSoon title="Clientes" description="Gestión de clientes europeos importadores de aguacate" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/parameters"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ComingSoon title="Parámetros" description="Configuración de productos, calibres, tasas y fletes" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ComingSoon title="Configuración" description="Configuración general del sistema" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   )
 }
 
@@ -140,6 +152,22 @@ function ComingSoon({ title, description }: { title: string; description: string
         </div>
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <BrowserRouter>
+            <AppEntry />
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
   )
 }
 
