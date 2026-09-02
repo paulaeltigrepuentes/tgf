@@ -25,37 +25,29 @@ interface StatCard {
 const stats: StatCard[] = [
   {
     title: 'Cotizaciones este mes',
-    value: '24',
-    subtitle: '12 approved · 8 pending · 4 draft',
-    trend: 'up',
-    trendValue: '+12% vs mes anterior',
+    value: '0',
+    subtitle: '0 aprobadas · 0 pendientes · 0 borradores',
     icon: <FileText className="w-5 h-5" />,
     iconColor: 'bg-[#2D6A4F]/10 text-[#2D6A4F]',
   },
   {
     title: 'Valor total exportado',
-    value: '$2.84M USD',
-    subtitle: 'Acumulado año 2025',
-    trend: 'up',
-    trendValue: '+18% vs año anterior',
+    value: '$0',
+    subtitle: 'Sin cotizaciones registradas',
     icon: <DollarSign className="w-5 h-5" />,
     iconColor: 'bg-[#D4A017]/10 text-[#D4A017]',
   },
   {
     title: 'Margen promedio',
-    value: '14.3%',
+    value: '—',
     subtitle: 'Margen ponderado FOB/CIF',
-    trend: 'up',
-    trendValue: '+1.2pp vs mes anterior',
     icon: <TrendingUp className="w-5 h-5" />,
     iconColor: 'bg-emerald-50 text-emerald-600',
   },
   {
     title: 'Tasa de cambio',
-    value: '$4.285 COP',
-    subtitle: 'USD/COP · TRM hoy',
-    trend: 'down',
-    trendValue: '−0.3% vs ayer',
+    value: '—',
+    subtitle: 'USD/COP · configúrala en Parámetros › Tasas',
     icon: <Activity className="w-5 h-5" />,
     iconColor: 'bg-blue-50 text-blue-600',
   },
@@ -72,13 +64,7 @@ interface RecentQuote {
   date: string
 }
 
-const recentQuotes: RecentQuote[] = [
-  { id: '1', number: 'COT-2025-024', client: 'EuroHass B.V.', destination: 'Róterdam, Países Bajos', value: '$186,400 USD', margin: '15.2%', status: 'approved', date: '2025-07-14' },
-  { id: '2', number: 'COT-2025-023', client: 'FreshConnect GmbH', destination: 'Hamburgo, Alemania', value: '$142,800 USD', margin: '13.8%', status: 'pending', date: '2025-07-13' },
-  { id: '3', number: 'COT-2025-022', client: 'MedFruit Iberia', destination: 'Algeciras, España', value: '$98,200 USD', margin: '12.1%', status: 'approved', date: '2025-07-11' },
-  { id: '4', number: 'COT-2025-021', client: 'AlpFruit AG', destination: 'Basilea, Suiza', value: '$210,500 USD', margin: '16.4%', status: 'draft', date: '2025-07-10' },
-  { id: '5', number: 'COT-2025-020', client: 'Nordic Produce AS', destination: 'Oslo, Noruega', value: '$76,300 USD', margin: '11.9%', status: 'rejected', date: '2025-07-09' },
-]
+const recentQuotes: RecentQuote[] = []
 
 const statusConfig: Record<RecentQuote['status'], { label: string; class: string }> = {
   approved: { label: 'Aprobada', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -190,6 +176,24 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
+                    {recentQuotes.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-12 text-center">
+                          <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-500 font-medium">Aún no hay cotizaciones</p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Crea tu primera cotización para ver el resumen aquí
+                          </p>
+                          <a
+                            href="/cotizaciones/nueva"
+                            className="inline-flex items-center gap-1.5 mt-4 px-3 py-1.5 rounded-lg bg-[#2D6A4F] text-white text-sm font-medium hover:bg-[#1B4332] transition-colors"
+                          >
+                            <FileText className="w-4 h-4" />
+                            Nueva cotización
+                          </a>
+                        </td>
+                      </tr>
+                    )}
                     {recentQuotes.map((q) => (
                       <tr key={q.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-5 py-3 font-mono text-xs font-semibold text-[#2D6A4F]">{q.number}</td>

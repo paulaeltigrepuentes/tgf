@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +20,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Plus,
   Search,
   Edit,
@@ -29,7 +37,6 @@ import {
   Users,
   Percent,
 } from 'lucide-react'
-import { useState } from 'react'
 
 interface CostItem {
   id: string
@@ -41,20 +48,7 @@ interface CostItem {
   active: boolean
 }
 
-const mockCosts: CostItem[] = [
-  { id: '1', category: 'Flete', name: 'Flete marítimo 40\' HC', unit: 'contenedor', amount: '$3,200', currency: 'USD', active: true },
-  { id: '2', category: 'Flete', name: 'Flete marítimo 20\' STD', unit: 'contenedor', amount: '$2,200', currency: 'USD', active: true },
-  { id: '3', category: 'Seguro', name: 'Seguro marítimo (all-risks)', unit: '% del valor', amount: '1.2%', currency: 'USD', active: true },
-  { id: '4', category: 'Arancel', name: 'Arancel importación UE', unit: '% FOB', amount: '0%', currency: 'EUR', active: true },
-  { id: '5', category: 'Arancel', name: 'IVA importación NL', unit: '% CIF', amount: '9%', currency: 'EUR', active: true },
-  { id: '6', category: 'Arancel', name: 'IVA importación DE', unit: '% CIF', amount: '7%', currency: 'EUR', active: true },
-  { id: '7', category: 'Arancel', name: 'IVA importación ES', unit: '% CIF', amount: '4%', currency: 'EUR', active: true },
-  { id: '8', category: 'Comisión', name: 'Agente aduanero', unit: 'flat fee', amount: '$180', currency: 'USD', active: true },
-  { id: '9', category: 'Comisión', name: 'Agente comercial', unit: '% FOB', amount: '2%', currency: 'USD', active: true },
-  { id: '10', category: 'Empaque', name: 'Caja cartón 4kg export', unit: 'unidad', amount: '$0.85', currency: 'USD', active: true },
-  { id: '11', category: 'Empaque', name: 'Sticker exportador', unit: 'unidad', amount: '$0.08', currency: 'USD', active: true },
-  { id: '12', category: 'Empaque', name: 'Pallet de madera', unit: 'unidad', amount: '$12.00', currency: 'USD', active: true },
-]
+const initialCosts: CostItem[] = []
 
 const categoryConfig: Record<string, { icon: React.ReactNode; color: string }> = {
   Flete: { icon: <Ship className="w-4 h-4" />, color: 'bg-blue-50 text-blue-600' },
@@ -65,25 +59,89 @@ const categoryConfig: Record<string, { icon: React.ReactNode; color: string }> =
 }
 
 const categories = Object.keys(categoryConfig)
+const currencies = ['USD', 'EUR', 'COP']
+
+type CostForm = Omit<CostItem, 'id'>
+
+const emptyForm: CostForm = {
+  category: 'Flete',
+  name: '',
+  unit: '',
+  amount: '',
+  currency: 'USD',
+  active: true,
+}
 
 export default function Costos() {
+  const [costs, setCosts] = useState<CostItem[]>(initialCosts)
   const [search, setSearch] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<CostForm>(emptyForm)
 
-  const filtered = mockCosts.filter((c) =>
-    !search ||
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.category.toLowerCase().includes(search.toLowerCase())
+  const filtered = costs.filter(
+    (c) =>
+      !search ||
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.category.toLowerCase().includes(search.toLowerCase())
   )
+
+  const openNew = () => {
+    setEditingId(null)
+    setForm(emptyForm)
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (c: CostItem) => {
+    setEditingId(c.id)
+    setForm({
+      category: c.category,
+      name: c.name,
+      unit: c.unit,
+      amount: c.amount,
+      currency: c.currency,
+      active: c.active,
+    })
+    setIsDialogOpen(true)
+  }
+
+  const closeDialog = () => {
+    setIsDialogOpen(false)
+    setEditingId(null)
+    setForm(emptyForm)
+  }
+
+  const handleSave = () => {
+    const parsed: CostForm = {
+      ...form,
+      name: form.name.trim(),
+      unit: form.unit.trim(),
+      amount: form.amount.trim(),
+    }
+    if (editingId) {
+      setCosts((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...parsed } : c)))
+    } else {
+      setCosts((prev) => [...prev, { id: crypto.randomUUID(), ...parsed }])
+    }
+    closeDialog()
+  }
+
+  const handleDelete = (id: string) => {
+    setCosts((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  const isValid = form.name.trim() !== '' && form.amount.trim() !== ''
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Costos</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Parámetros de costos: fletes, seguros, aranceles y comisiones</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Parámetros de costos: fletes, seguros, aranceles y comisiones
+          </p>
         </div>
-        <Button className="gap-1.5 bg-[#2D6A4F] hover:bg-[#1B4332]" onClick={() => setIsDialogOpen(true)}>
+        <Button className="gap-1.5 bg-[#2D6A4F] hover:bg-[#1B4332]" onClick={openNew}>
           <Plus className="w-4 h-4" />
           Nuevo costo
         </Button>
@@ -106,7 +164,7 @@ export default function Costos() {
       {/* Category summary */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {categories.map((cat) => {
-          const count = mockCosts.filter((c) => c.category === cat).length
+          const count = costs.filter((c) => c.category === cat).length
           const cfg = categoryConfig[cat]
           return (
             <div key={cat} className="flex items-center gap-2 p-3 bg-white border border-gray-200 rounded-xl">
@@ -147,7 +205,7 @@ export default function Costos() {
                         <span className="ml-1">{c.category}</span>
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-500">{c.unit}</TableCell>
+                    <TableCell className="text-sm text-gray-500">{c.unit || '—'}</TableCell>
                     <TableCell className="text-right font-mono font-semibold text-gray-900">{c.amount}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 font-mono">
@@ -165,54 +223,111 @@ export default function Costos() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="icon" variant="ghost" className="h-8 w-8">
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(c)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-700">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-red-500 hover:text-red-700"
+                          onClick={() => handleDelete(c.id)}
+                        >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12">
+                      <DollarSign className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">No hay costos registrados</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Agrega fletes, seguros, aranceles o comisiones
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => (open ? setIsDialogOpen(true) : closeDialog())}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Nuevo costo</DialogTitle>
+            <DialogTitle>{editingId ? 'Editar costo' : 'Nuevo costo'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Nombre</Label>
-              <Input placeholder="Nombre del costo" />
+              <Label htmlFor="cost-name">Nombre</Label>
+              <Input
+                id="cost-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Nombre del costo"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>Categoría</Label>
-              <Input placeholder="Categoría" />
+              <Label htmlFor="cost-category">Categoría</Label>
+              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger id="cost-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Unidad</Label>
-                <Input placeholder="Ej: contenedor" />
+                <Label htmlFor="cost-unit">Unidad</Label>
+                <Input
+                  id="cost-unit"
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  placeholder="Ej: contenedor"
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>Monto</Label>
-                <Input placeholder="Ej: $3,200" />
+                <Label htmlFor="cost-amount">Monto</Label>
+                <Input
+                  id="cost-amount"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  placeholder="Ej: 3200 o 1.2%"
+                />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Moneda</Label>
-              <Input placeholder="USD / EUR / COP" />
+              <Label htmlFor="cost-currency">Moneda</Label>
+              <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                <SelectTrigger id="cost-currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((cur) => (
+                    <SelectItem key={cur} value={cur}>
+                      {cur}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-            <Button className="bg-[#2D6A4F] hover:bg-[#1B4332]" onClick={() => setIsDialogOpen(false)}>Crear costo</Button>
+            <Button variant="outline" onClick={closeDialog}>
+              Cancelar
+            </Button>
+            <Button className="bg-[#2D6A4F] hover:bg-[#1B4332]" onClick={handleSave} disabled={!isValid}>
+              {editingId ? 'Guardar cambios' : 'Crear costo'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
