@@ -48,18 +48,7 @@ interface Quote {
   createdBy: string
 }
 
-const mockQuotes: Quote[] = [
-  { id: '1', number: 'COT-2025-024', date: '2025-07-14', client: 'EuroHass B.V.', destination: 'Róterdam, NL', product: 'Aguacate Hass', caliber: '22', value: '186,400', currency: 'USD', margin: '15.2', status: 'approved', version: 'v2', createdBy: 'María Gómez' },
-  { id: '2', number: 'COT-2025-023', date: '2025-07-13', client: 'FreshConnect GmbH', destination: 'Hamburgo, DE', product: 'Aguacate Hass', caliber: '24', value: '142,800', currency: 'USD', margin: '13.8', status: 'pending', version: 'v1', createdBy: 'Carlos Ruiz' },
-  { id: '3', number: 'COT-2025-022', date: '2025-07-11', client: 'MedFruit Iberia', destination: 'Algeciras, ES', product: 'Aguacate Hass Premium', caliber: '20', value: '98,200', currency: 'USD', margin: '12.1', status: 'approved', version: 'v1', createdBy: 'María Gómez' },
-  { id: '4', number: 'COT-2025-021', date: '2025-07-10', client: 'AlpFruit AG', destination: 'Basilea, CH', product: 'Aguacate Hass', caliber: '22', value: '210,500', currency: 'USD', margin: '16.4', status: 'draft', version: 'v1', createdBy: 'Carlos Ruiz' },
-  { id: '5', number: 'COT-2025-020', date: '2025-07-09', client: 'Nordic Produce AS', destination: 'Oslo, NO', product: 'Aguacate Hass', caliber: '26', value: '76,300', currency: 'USD', margin: '11.9', status: 'rejected', version: 'v1', createdBy: 'Ana Torres' },
-  { id: '6', number: 'COT-2025-019', date: '2025-07-08', client: 'EuroHass B.V.', destination: 'Róterdam, NL', product: 'Aguacate Hass', caliber: '24', value: '163,500', currency: 'USD', margin: '14.7', status: 'approved', version: 'v3', createdBy: 'María Gómez' },
-  { id: '7', number: 'COT-2025-018', date: '2025-07-07', client: 'FreshConnect GmbH', destination: 'Hamburgo, DE', product: 'Aguacate Hass', caliber: '22', value: '198,200', currency: 'USD', margin: '15.0', status: 'approved', version: 'v2', createdBy: 'Carlos Ruiz' },
-  { id: '8', number: 'COT-2025-017', date: '2025-07-05', client: 'Atlantic Fresh SL', destination: 'Valencia, ES', product: 'Aguacate Hass Organic', caliber: '20', value: '88,600', currency: 'USD', margin: '13.2', status: 'pending', version: 'v1', createdBy: 'Ana Torres' },
-  { id: '9', number: 'COT-2025-016', date: '2025-07-03', client: 'AlpFruit AG', destination: 'Basilea, CH', product: 'Aguacate Hass Premium', caliber: '22', value: '245,800', currency: 'USD', margin: '17.1', status: 'approved', version: 'v1', createdBy: 'María Gómez' },
-  { id: '10', number: 'COT-2025-015', date: '2025-07-01', client: 'Nordic Produce AS', destination: 'Oslo, NO', product: 'Aguacate Hass', caliber: '28', value: '64,200', currency: 'USD', margin: '10.8', status: 'draft', version: 'v1', createdBy: 'Carlos Ruiz' },
-]
+const mockQuotes: Quote[] = []
 
 const statusConfig: Record<Quote['status'], { label: string; class: string; dot: string }> = {
   approved: { label: 'Aprobada', class: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
