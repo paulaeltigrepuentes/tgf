@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
   Select,
@@ -12,458 +11,416 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Package, Scale, Ship, Coins, Percent, Plus, Trash2 } from 'lucide-react'
 import {
-  Package,
-  MapPin,
-  Scale,
-  Ship,
-  DollarSign,
-  Percent,
-  ChevronRight,
-  Save,
-  Eye,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+  calculateQuoteTotals,
+  CALIBER_TABLE,
+  PACKAGING_TABLE,
+  type CaliberLineInput,
+  type Incoterm,
+  type PackagingType,
+  type QuoteInput,
+} from '@/lib/calculations'
+import { QuoteResults } from './QuoteResults'
 
-const mockClients = [
-  { id: '1', name: 'EuroHass B.V.', country: 'Países Bajos' },
-  { id: '2', name: 'FreshConnect GmbH', country: 'Alemania' },
-  { id: '3', name: 'MedFruit Iberia', country: 'España' },
-  { id: '4', name: 'AlpFruit AG', country: 'Suiza' },
-  { id: '5', name: 'Nordic Produce AS', country: 'Noruega' },
-]
-
-const mockProducts = ['Aguacate Hass', 'Aguacate Hass Organic', 'Aguacate Hass Premium']
-const mockCalibers = ['20', '22', '24', '26', '28', '30', '32', '36', '40']
-const mockDestinations = [
-  'Róterdam, Países Bajos',
-  'Hamburgo, Alemania',
-  'Algeciras, España',
-  'Basilea, Suiza',
-  'Oslo, Noruega',
-  'Gante, Bélgica',
-  'Le Havre, Francia',
-]
-const mockRoutes = [
-  'Buenaventura → Róterdam (40 dias)',
-  'Cartagena → Hamburgo (35 dias)',
-  'Buenaventura → Algeciras (38 dias)',
-  'Cartagena → Basilea (42 dias)',
-]
-const mockCurrencies = ['USD', 'EUR', 'COP']
-
-interface ContainerRow {
+// --- Editable line shape (strings for controlled inputs) ---
+interface LineRow {
   id: string
-  pallets: string
+  caliber: number
+  packaging: PackagingType
   boxes: string
-  netWeight: string
-  grossWeight: string
+  purchasePrice: string
+  margin: string // percent, e.g. "15"
+}
+
+const packagingByType = (type: PackagingType) =>
+  PACKAGING_TABLE.find((p) => p.type === type) ?? PACKAGING_TABLE[0]
+
+function makeLine(partial?: Partial<LineRow>): LineRow {
+  return {
+    id: crypto.randomUUID(),
+    caliber: 22,
+    packaging: '10kg',
+    boxes: '1800',
+    purchasePrice: '6500',
+    margin: '15',
+    ...partial,
+  }
+}
+
+const num = (v: string) => {
+  const n = Number.parseFloat(v)
+  return Number.isFinite(n) ? n : 0
 }
 
 export default function NuevaCotizacion() {
-  const [currency, setCurrency] = useState('USD')
+  const [incoterm, setIncoterm] = useState<Incoterm>('FOB')
 
-  const [containers, setContainers] = useState<ContainerRow[]>([
-    { id: '1', pallets: '20', boxes: '1,800', netWeight: '7,200', grossWeight: '7,920' },
+  // Exchange rates (always parameters, never hardcoded in the engine)
+  const [usdCop, setUsdCop] = useState('4285')
+  const [eurCop, setEurCop] = useState('4650')
+
+  // Caliber lines
+  const [lines, setLines] = useState<LineRow[]>([makeLine()])
+
+  // Operating costs
+  const [fleteTerrestrePorCarro, setFleteTerrestrePorCarro] = useState('4500000')
+  const [numeroCarros, setNumeroCarros] = useState('1')
+  const [maquilaPorKg, setMaquilaPorKg] = useState('350')
+  const [transportePuerto, setTransportePuerto] = useState('2800000')
+  const [gastosPuerto, setGastosPuerto] = useState('1500000')
+  const [costoAdminPorKg1, setCostoAdminPorKg1] = useState('100')
+  const [costoAdminPorKg2, setCostoAdminPorKg2] = useState('50')
+  const [analisisResidualidad, setAnalisisResidualidad] = useState('450000')
+  const [survey, setSurvey] = useState('600000')
+  const [intermediacionFinanciera, setIntermediacionFinanciera] = useState('800000')
+  const [gastosBancarios, setGastosBancarios] = useState('300000')
+  const [arancel, setArancel] = useState('0')
+  const [seguroFactura, setSeguroFactura] = useState('250000')
+  const [porcentajeImprevistos, setPorcentajeImprevistos] = useState('5')
+
+  // Freight & insurance
+  const [fletePorContenedor, setFletePorContenedor] = useState('3200')
+  const [numeroContenedores, setNumeroContenedores] = useState('1')
+  const [seguroMaritimo, setSeguroMaritimo] = useState('450')
+
+  const updateLine = (id: string, patch: Partial<LineRow>) =>
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)))
+
+  const addLine = () => setLines((prev) => [...prev, makeLine()])
+  const removeLine = (id: string) =>
+    setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.id !== id) : prev))
+
+  // --- Build engine input and compute live ---
+  const result = useMemo(() => {
+    const engineLines: CaliberLineInput[] = lines.map((l) => {
+      const pkg = packagingByType(l.packaging)
+      return {
+        caliber: l.caliber,
+        boxes: num(l.boxes),
+        kgPerBox: pkg.kgPerBox,
+        purchasePricePerKgCOP: num(l.purchasePrice),
+        marginPct: num(l.margin) / 100,
+      }
+    })
+
+    const totalKilos = engineLines.reduce((s, l) => s + l.boxes * l.kgPerBox, 0)
+    const totalCajas = engineLines.reduce((s, l) => s + l.boxes, 0)
+    // Weighted packaging cost per box (mixed packaging support), matched by index
+    const empaquePorCaja =
+      totalCajas > 0
+        ? lines.reduce((s, l) => s + packagingByType(l.packaging).costPerBoxCOP * num(l.boxes), 0) / totalCajas
+        : 0
+
+    const input: QuoteInput = {
+      lines: engineLines,
+      rates: { usdCop: num(usdCop), eurCop: num(eurCop) },
+      operatingCosts: {
+        fleteTerrestrePorCarro: num(fleteTerrestrePorCarro),
+        numeroCarros: num(numeroCarros),
+        maquilaPorKg: num(maquilaPorKg),
+        kilosExportables: totalKilos,
+        transportePuerto: num(transportePuerto),
+        gastosPuerto: num(gastosPuerto),
+        empaquePorCaja,
+        costoAdminPorKg1: num(costoAdminPorKg1),
+        costoAdminPorKg2: num(costoAdminPorKg2),
+        analisisResidualidad: num(analisisResidualidad),
+        survey: num(survey),
+        intermediacionFinanciera: num(intermediacionFinanciera),
+        gastosBancarios: num(gastosBancarios),
+        arancel: num(arancel),
+        seguroFactura: num(seguroFactura),
+        porcentajeImprevistos: num(porcentajeImprevistos) / 100,
+      },
+      freight: {
+        fletePorContenedor: num(fletePorContenedor),
+        numeroContenedores: num(numeroContenedores),
+      },
+      insurance: { valor: num(seguroMaritimo), currency: 'USD' },
+      nationalSale: { porcentajeDescuento: 0.1, porcentajeVenta: 0.1, kilosVendidos: 0 },
+      incoterm,
+      totalCajas,
+      totalKilos,
+    }
+
+    return calculateQuoteTotals(input)
+  }, [
+    lines,
+    usdCop,
+    eurCop,
+    fleteTerrestrePorCarro,
+    numeroCarros,
+    maquilaPorKg,
+    transportePuerto,
+    gastosPuerto,
+    costoAdminPorKg1,
+    costoAdminPorKg2,
+    analisisResidualidad,
+    survey,
+    intermediacionFinanciera,
+    gastosBancarios,
+    arancel,
+    seguroFactura,
+    porcentajeImprevistos,
+    fletePorContenedor,
+    numeroContenedores,
+    seguroMaritimo,
+    incoterm,
   ])
 
-  const addContainer = () => {
-    setContainers((prev) => [
-      ...prev,
-      { id: Date.now().toString(), pallets: '20', boxes: '1,800', netWeight: '7,200', grossWeight: '7,920' },
-    ])
-  }
-
-  const removeContainer = (id: string) => {
-    if (containers.length > 1) setContainers((prev) => prev.filter((c) => c.id !== id))
-  }
-
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="space-y-6 p-4 md:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nueva Cotización</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Crear una nueva cotización de exportación</p>
+          <h1 className="text-2xl font-bold text-foreground">Nueva Cotización</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Cotización de exportación de aguacate Hass · cálculo en vivo
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-1.5">
-            <Eye className="w-4 h-4" />
-            Vista previa
-          </Button>
-          <Button className="gap-1.5 bg-[#2D6A4F] hover:bg-[#1B4332]">
-            <Save className="w-4 h-4" />
-            Guardar borrador
-          </Button>
-          <Button className="gap-1.5 bg-[#D4A017] hover:bg-[#B8900F] text-white">
-            <ChevronRight className="w-4 h-4" />
-            Calcular y ver resumen
-          </Button>
+          <Label className="text-sm text-muted-foreground">Incoterm</Label>
+          <Select value={incoterm} onValueChange={(v) => setIncoterm(v as Incoterm)}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="FOB">FOB</SelectItem>
+              <SelectItem value="CIF">CIF</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Main form */}
-        <div className="xl:col-span-2 space-y-5">
-          {/* General info */}
-          <Card className="border-gray-200">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* Form column */}
+        <div className="space-y-5 xl:col-span-2">
+          {/* Exchange rates */}
+          <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#2D6A4F]/10 flex items-center justify-center">
-                  <Package className="w-4 h-4 text-[#2D6A4F]" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                  <Coins className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Información general</CardTitle>
-                  <CardDescription className="text-xs">Datos básicos de la cotización</CardDescription>
+                  <CardTitle className="text-base">Tasas de cambio</CardTitle>
+                  <CardDescription className="text-xs">
+                    Parámetros TRM — se aplican a todas las conversiones
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="number">Número de cotización</Label>
-                  <Input id="number" value="COT-2025-025" readOnly className="bg-gray-50 font-mono" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="date">Fecha</Label>
-                  <Input id="date" type="date" defaultValue="2025-07-15" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Cliente</Label>
-                  <Select defaultValue="1">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockClients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} · {c.country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="incoterm">Incoterm</Label>
-                  <Select defaultValue="fob">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fob">FOB · Free On Board</SelectItem>
-                      <SelectItem value="cif">CIF · Cost, Insurance & Freight</SelectItem>
-                      <SelectItem value="dap">DAP · Delivered At Place</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="usdCop">TRM USD/COP</Label>
+                <Input id="usdCop" type="number" value={usdCop} onChange={(e) => setUsdCop(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eurCop">TRM EUR/COP</Label>
+                <Input id="eurCop" type="number" value={eurCop} onChange={(e) => setEurCop(e.target.value)} />
               </div>
             </CardContent>
           </Card>
 
-          {/* Product */}
-          <Card className="border-gray-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#D4A017]/10 flex items-center justify-center">
-                  <Package className="w-4 h-4 text-[#D4A017]" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Producto y especificaciones</CardTitle>
-                  <CardDescription className="text-xs">Definir producto, calibre y cantidad</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Producto</Label>
-                  <Select defaultValue="0">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockProducts.map((p, i) => (
-                        <SelectItem key={i} value={i.toString()}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Calibre principal</Label>
-                  <Select defaultValue="22">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockCalibers.map((c) => (
-                        <SelectItem key={c} value={c}>{c} (frutas/caja 4kg)</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="boxes">Cajas totales</Label>
-                  <Input id="boxes" type="number" placeholder="Ej: 1800" defaultValue="1800" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="netWeight">Peso neto (kg)</Label>
-                  <Input id="netWeight" type="number" placeholder="Ej: 7200" defaultValue="7200" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="grossWeight">Peso bruto (kg)</Label>
-                  <Input id="grossWeight" type="number" placeholder="Ej: 7920" defaultValue="7920" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Logistics */}
-          <Card className="border-gray-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <Ship className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Logística y destino</CardTitle>
-                  <CardDescription className="text-xs">Puerto de destino y ruta de envío</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Mercado destino</Label>
-                  <Select defaultValue="0">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockDestinations.map((d, i) => (
-                        <SelectItem key={i} value={i.toString()}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Ruta logística</Label>
-                  <Select defaultValue="0">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockRoutes.map((r, i) => (
-                        <SelectItem key={i} value={i.toString()}>{r}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="portEta">ETA estimada (días)</Label>
-                  <Input id="portEta" type="number" placeholder="Ej: 40" defaultValue="40" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="containerType">Tipo de contenedor</Label>
-                  <Select defaultValue="40hq">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="40hq">40' High Cube (26 pallets)</SelectItem>
-                      <SelectItem value="20">20' Standard (20 pallets)</SelectItem>
-                      <SelectItem value="40">40' Standard (22 pallets)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Containers */}
-          <Card className="border-gray-200">
+          {/* Caliber lines */}
+          <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <Scale className="w-4 h-4 text-purple-600" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Package className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-base">Contenedores</CardTitle>
-                    <CardDescription className="text-xs">Detalle de contenedores y carga</CardDescription>
+                    <CardTitle className="text-base">Líneas por calibre</CardTitle>
+                    <CardDescription className="text-xs">
+                      Calibre, empaque, cajas, precio de compra y margen
+                    </CardDescription>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={addContainer}>
-                  <Plus className="w-3.5 h-3.5" />
-                  Agregar contenedor
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={addLine}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Agregar línea
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {containers.map((container, idx) => (
-                  <div key={container.id} className="grid grid-cols-1 sm:grid-cols-5 gap-3 p-4 border border-gray-200 rounded-xl bg-gray-50/50">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Contenedor {idx + 1}</Label>
-                      <Input value={`CTR-${(1000 + idx + 1).toString()}`} readOnly className="bg-white font-mono text-sm" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Palés</Label>
-                      <Input
-                        type="number"
-                        value={container.pallets}
-                        onChange={(e) => {
-                          const updated = [...containers]
-                          updated[idx].pallets = e.target.value
-                          setContainers(updated)
-                        }}
-                        className="bg-white text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Cajas</Label>
-                      <Input
-                        type="number"
-                        value={container.boxes}
-                        onChange={(e) => {
-                          const updated = [...containers]
-                          updated[idx].boxes = e.target.value
-                          setContainers(updated)
-                        }}
-                        className="bg-white text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-gray-500">Peso neto (kg)</Label>
-                      <Input
-                        type="number"
-                        value={container.netWeight}
-                        onChange={(e) => {
-                          const updated = [...containers]
-                          updated[idx].netWeight = e.target.value
-                          setContainers(updated)
-                        }}
-                        className="bg-white text-sm"
-                      />
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1 space-y-1">
-                        <Label className="text-xs text-gray-500">Peso bruto (kg)</Label>
-                        <Input
-                          type="number"
-                          value={container.grossWeight}
-                          onChange={(e) => {
-                            const updated = [...containers]
-                            updated[idx].grossWeight = e.target.value
-                            setContainers(updated)
-                          }}
-                          className="bg-white text-sm"
-                        />
-                      </div>
-                      {containers.length > 1 && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                          onClick={() => removeContainer(container.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
+            <CardContent className="space-y-3">
+              {lines.map((line, idx) => (
+                <div
+                  key={line.id}
+                  className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/30 p-4 lg:grid-cols-6"
+                >
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Calibre</Label>
+                    <Select
+                      value={String(line.caliber)}
+                      onValueChange={(v) => updateLine(line.id, { caliber: Number(v) })}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CALIBER_TABLE.map((c) => (
+                          <SelectItem key={c.caliber} value={String(c.caliber)}>
+                            {c.caliber} ({c.gramajeRange}g)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Empaque</Label>
+                    <Select
+                      value={line.packaging}
+                      onValueChange={(v) => updateLine(line.id, { packaging: v as PackagingType })}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PACKAGING_TABLE.map((p) => (
+                          <SelectItem key={p.type} value={p.type}>
+                            {p.type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Cajas</Label>
+                    <Input
+                      type="number"
+                      className="bg-background"
+                      value={line.boxes}
+                      onChange={(e) => updateLine(line.id, { boxes: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Compra COP/kg</Label>
+                    <Input
+                      type="number"
+                      className="bg-background"
+                      value={line.purchasePrice}
+                      onChange={(e) => updateLine(line.id, { purchasePrice: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Margen %</Label>
+                    <Input
+                      type="number"
+                      className="bg-background"
+                      value={line.margin}
+                      onChange={(e) => updateLine(line.id, { margin: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    {lines.length > 1 && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-red-500 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => removeLine(line.id)}
+                        aria-label={`Eliminar línea ${idx + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Operating costs */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--gold-500))]/10">
+                  <Scale className="h-4 w-4 text-[hsl(var(--gold-600))]" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Costos operativos (COP)</CardTitle>
+                  <CardDescription className="text-xs">Componentes FOB antes de imprevistos</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(
+                [
+                  ['Flete terrestre / carro', fleteTerrestrePorCarro, setFleteTerrestrePorCarro],
+                  ['N.º de carros', numeroCarros, setNumeroCarros],
+                  ['Maquila COP/kg', maquilaPorKg, setMaquilaPorKg],
+                  ['Transporte a puerto', transportePuerto, setTransportePuerto],
+                  ['Gastos de puerto', gastosPuerto, setGastosPuerto],
+                  ['Admin COP/kg (1)', costoAdminPorKg1, setCostoAdminPorKg1],
+                  ['Admin COP/kg (2)', costoAdminPorKg2, setCostoAdminPorKg2],
+                  ['Análisis residualidad', analisisResidualidad, setAnalisisResidualidad],
+                  ['Survey', survey, setSurvey],
+                  ['Intermediación fin.', intermediacionFinanciera, setIntermediacionFinanciera],
+                  ['Gastos bancarios', gastosBancarios, setGastosBancarios],
+                  ['Arancel', arancel, setArancel],
+                  ['Seguro factura', seguroFactura, setSeguroFactura],
+                ] as [string, string, (v: string) => void][]
+              ).map(([label, value, setter]) => (
+                <div key={label} className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">{label}</Label>
+                  <Input type="number" value={value} onChange={(e) => setter(e.target.value)} />
+                </div>
+              ))}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Percent className="h-3 w-3" /> Imprevistos %
+                </Label>
+                <Input
+                  type="number"
+                  value={porcentajeImprevistos}
+                  onChange={(e) => setPorcentajeImprevistos(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Freight & insurance */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+                  <Ship className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Flete y seguro marítimo (CIF)</CardTitle>
+                  <CardDescription className="text-xs">Valores en USD</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Flete / contenedor (USD)</Label>
+                <Input
+                  type="number"
+                  value={fletePorContenedor}
+                  onChange={(e) => setFletePorContenedor(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">N.º contenedores</Label>
+                <Input
+                  type="number"
+                  value={numeroContenedores}
+                  onChange={(e) => setNumeroContenedores(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Seguro marítimo (USD)</Label>
+                <Input type="number" value={seguroMaritimo} onChange={(e) => setSeguroMaritimo(e.target.value)} />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right sidebar - financial summary preview */}
-        <div className="space-y-5">
-          <Card className="border-gray-200 sticky top-20">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#2D6A4F]/10 flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-[#2D6A4F]" />
-                </div>
-                <CardTitle className="text-base">Resumen financiero</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1.5">
-                <Label>Moneda de cotización</Label>
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockCurrencies.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              {[
-                { label: 'Tasa de cambio (USD/COP)', value: '$4,285.00', editable: true },
-                { label: 'Precio FOB unitario (USD)', value: '$8.50 / caja', editable: true },
-                { label: 'Total cajas', value: '1,800' },
-                { label: 'Valor FOB total', value: '$15,300 USD', highlight: true },
-              ].map((item) => (
-                <div key={item.label} className={item.highlight ? 'pt-2 border-t border-gray-200' : ''}>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm ${item.highlight ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
-                      {item.label}
-                    </span>
-                    <span className={`text-sm font-mono ${item.highlight ? 'font-bold text-[#2D6A4F]' : 'text-gray-700'}`}>
-                      {item.value}
-                    </span>
-                  </div>
-                  {item.editable && (
-                    <Input type="number" placeholder="Ingresar" className="mt-1 h-8 text-sm" />
-                  )}
-                </div>
-              ))}
-
-              <Separator />
-
-              {[
-                { label: 'Flete marítimo', value: '$3,200 USD' },
-                { label: 'Seguro', value: '$450 USD' },
-                { label: 'Arancel destino', value: '$0 (acuerdo)' },
-                { label: 'Comisiones', value: '$280 USD' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">{item.label}</span>
-                  <span className="text-sm font-mono text-gray-700">{item.value}</span>
-                </div>
-              ))}
-
-              <Separator />
-
-              <div className="bg-[#2D6A4F]/5 rounded-xl p-3 space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-900">Valor CIF total</span>
-                  <span className="text-base font-bold font-mono text-[#2D6A4F]">$19,230 USD</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Margen estimado</span>
-                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
-                    <Percent className="w-3 h-3 mr-0.5" />
-                    14.5%
-                  </Badge>
-                </div>
-              </div>
-
-              <p className="text-xs text-gray-400 text-center">
-                Los cálculos se mostrarán al hacer clic en "Calcular y ver resumen"
-              </p>
-            </CardContent>
-          </Card>
+        {/* Results column */}
+        <div className="xl:sticky xl:top-20 xl:h-fit">
+          <QuoteResults result={result} incoterm={incoterm} />
         </div>
       </div>
     </div>
