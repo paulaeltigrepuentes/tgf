@@ -40,6 +40,7 @@ export const RoleName = {
   GERENCIAL: 'gerencial',
   PRICING: 'pricing',
   COMERCIAL: 'comercial',
+  LOGISTICA: 'logistica',
 } as const;
 export type RoleName = typeof RoleName[keyof typeof RoleName];
 
@@ -60,12 +61,14 @@ export type CustomerStatus = typeof CustomerStatus[keyof typeof CustomerStatus];
 
 export interface User {
   id: string;
+  username: string | null;
   full_name: string;
-  email: string;
+  email: string | null;
   role_id: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
+  last_login_at?: string | null;
 }
 
 export interface UserWithRole extends User {

@@ -8,7 +8,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,7 +16,6 @@ serve(async (req) => {
 
   try {
     const { username, password } = await req.json()
-    console.log('[auth-login] Login attempt for username:', username)
 
     if (!username || !password) {
       return new Response(
@@ -26,46 +24,25 @@ serve(async (req) => {
       )
     }
 
-    // Service client for admin operations
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // Step 1: Verify credentials using the database function
-    const { data: userId, error: verifyError } = await supabaseAdmin.rpc(
-      'verify_user_password',
-      { p_username: username, p_password: password }
-    )
+    // Step 1: Look up user by username
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('users')
+      .select('*, role:roles(*)')
+      .eq('username', username)
+      .single()
 
-    if (verifyError) {
-      console.error('[auth-login] verify_user_password RPC error:', verifyError)
-      return new Response(
-        JSON.stringify({ error: 'Error interno al verificar credenciales' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!userId) {
-      console.log('[auth-login] Invalid credentials for username:', username)
+    if (profileError || !userProfile) {
+      // Deliberate delay to prevent username enumeration
+      await new Promise(r => setTimeout(r, 300 + Math.random() * 200))
       return new Response(
         JSON.stringify({ error: 'Usuario o contraseña incorrectos' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Step 2: Get user profile and role
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('*, role:roles(*)')
-      .eq('id', userId)
-      .single()
-
-    if (profileError || !userProfile) {
-      console.error('[auth-login] Profile lookup error:', profileError)
-      return new Response(
-        JSON.stringify({ error: 'Usuario no encontrado' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
+    // Step 2: Verify active status
     if (!userProfile.active) {
       return new Response(
         JSON.stringify({ error: 'Usuario desactivado. Contacte a Gerencia.' }),
@@ -73,23 +50,29 @@ serve(async (req) => {
       )
     }
 
-    // Step 3: Get the auth.users internal email (technical, never shown to users)
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
+    const userId = userProfile.id
 
-    if (authError || !authUser?.user?.email) {
-      console.error('[auth-login] Auth user lookup error:', authError)
+    // Step 3: Verify password against Supabase Auth using signInWithPassword
+    // We create a temporary client with the user's auth email
+    const authEmail = `${username}@colcom-trade.internal`
+    const tempClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+
+    const { error: signInError } = await tempClient.auth.signInWithPassword({
+      email: authEmail,
+      password: password,
+    })
+
+    if (signInError) {
+      console.log('[auth-login] Sign-in failed for username:', username)
       return new Response(
-        JSON.stringify({ error: 'Cuenta no configurada correctamente' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Usuario o contraseña incorrectos' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const internalEmail = authUser.user.email
-
-    // Step 4: Create a real Supabase session using admin API
-    // We use signInWithPassword internally by creating a public client
-    // and calling it through our own logic, or we create a session directly
-    // The cleanest approach: use admin.createSession with the user's ID
+    // Step 4: Create session using admin API (gets real tokens)
     const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession(userId)
 
     if (sessionError || !sessionData?.session) {
@@ -100,16 +83,18 @@ serve(async (req) => {
       )
     }
 
-    console.log('[auth-login] Login successful for user:', username)
+    // Step 5: Update last_login_at (non-critical, don't fail if this errors)
+    await supabaseAdmin
+      .from('users')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', userId)
 
-    // Step 5: Return the session tokens and user profile
     return new Response(
       JSON.stringify({
         user: {
           id: userProfile.id,
-          username: username,
+          username: userProfile.username,
           full_name: userProfile.full_name,
-          email: userProfile.email,
           role: userProfile.role,
           active: userProfile.active,
         },
@@ -120,7 +105,6 @@ serve(async (req) => {
           expires_at: sessionData.session.expires_at,
           token_type: sessionData.session.token_type,
         },
-        message: 'Login exitoso',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

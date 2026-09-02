@@ -1,64 +1,33 @@
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-
-type AuthMode = 'sign_in' | 'sign_up' | 'forgotten_password';
+import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Login() {
-  const [mode, setMode] = useState<AuthMode>('sign_in');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { signIn } = useAuth()
+
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showResetInfo, setShowResetInfo] = useState(false)
+
+  const from = (location.state as { from?: string })?.from || '/'
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
+    e.preventDefault()
+    setLoading(true)
+    setMessage(null)
 
-    try {
-      if (mode === 'sign_in') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else if (mode === 'sign_up') {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName },
-          },
-        });
-        if (error) throw error;
-        setMessage({
-          type: 'success',
-          text: 'Cuenta creada. Revisa tu correo para verificar tu cuenta.',
-        });
-      } else if (mode === 'forgotten_password') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-        setMessage({
-          type: 'success',
-          text: 'Se enviaron instrucciones a tu correo electrónico.',
-        });
-      }
-    } catch (err) {
-      setMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Ocurrió un error',
-      });
-    } finally {
-      setLoading(false);
+    const { error } = await signIn(username, password)
+    if (error) {
+      setMessage({ type: 'error', text: error })
+      setLoading(false)
+    } else {
+      navigate(from, { replace: true })
     }
-  };
-
-  const resetForm = () => {
-    setEmail('');
-    setPassword('');
-    setFullName('');
-    setMessage(null);
-  };
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -89,7 +58,7 @@ export default function Login() {
               Plataforma profesional de cotización y análisis financiero para exportación de aguacate Hass.
             </p>
           </div>
-          
+
           <div className="space-y-4">
             {[
               { icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', label: 'Cotizaciones precisas y estructuradas' },
@@ -122,14 +91,10 @@ export default function Login() {
               <span className="text-xl font-bold text-[#1B4332]">ColCom Trade</span>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 text-center lg:text-left">
-              {mode === 'sign_in' && 'Bienvenido'}
-              {mode === 'sign_up' && 'Crear cuenta'}
-              {mode === 'forgotten_password' && 'Recuperar contraseña'}
+              Bienvenido
             </h2>
             <p className="mt-2 text-sm text-gray-600 text-center lg:text-left">
-              {mode === 'sign_in' && 'Ingrese sus credenciales para acceder a la plataforma'}
-              {mode === 'sign_up' && 'Ingrese sus datos para crear una cuenta'}
-              {mode === 'forgotten_password' && 'Ingrese su correo para recibir instrucciones'}
+              Ingrese sus credenciales para acceder a la plataforma
             </p>
           </div>
 
@@ -143,53 +108,48 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'sign_up' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Nombre completo
-                </label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] focus:border-transparent transition-colors"
-                  placeholder="Juan Pérez"
-                  required
-                />
-              </div>
-            )}
+          {showResetInfo && (
+            <div className="mb-4 p-3 rounded-lg text-sm bg-amber-50 text-amber-800 border border-amber-200">
+              <p className="font-medium mb-1">Recuperación de contraseña</p>
+              <p>Para restablecer su contraseña, contacte a Gerencia desde la opción <strong>Administración de usuarios</strong>.</p>
+            </div>
+          )}
 
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Correo electrónico
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Usuario
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] focus:border-transparent transition-colors"
-                placeholder="you@example.com"
+                placeholder="usuario"
                 required
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </div>
 
-            {mode !== 'forgotten_password' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Contraseña
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] focus:border-transparent transition-colors"
-                  placeholder={mode === 'sign_up' ? 'Mínimo 6 caracteres' : '••••••••'}
-                  required
-                  minLength={6}
-                />
-              </div>
-            )}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Contraseña
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] focus:border-transparent transition-colors"
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+            </div>
 
             <button
               type="submit"
@@ -202,61 +162,25 @@ export default function Login() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Procesando...
+                  Verificando...
                 </>
               ) : (
-                <>
-                  {mode === 'sign_in' && 'Iniciar sesión'}
-                  {mode === 'sign_up' && 'Crear cuenta'}
-                  {mode === 'forgotten_password' && 'Enviar instrucciones'}
-                </>
+                'Iniciar sesión'
               )}
             </button>
           </form>
 
-          <div className="mt-6 space-y-3">
-            {mode === 'sign_in' && (
-              <button
-                type="button"
-                onClick={() => { setMode('forgotten_password'); resetForm(); }}
-                className="w-full text-sm text-[#2D6A4F] hover:text-[#1B4332] hover:underline"
-              >
-                ¿Olvidó su contraseña?
-              </button>
-            )}
-
-            {(mode === 'sign_in' || mode === 'forgotten_password') && (
-              <button
-                type="button"
-                onClick={() => { setMode('sign_up'); resetForm(); }}
-                className="w-full text-sm text-[#2D6A4F] hover:text-[#1B4332] hover:underline"
-              >
-                ¿No tiene cuenta? Crear cuenta
-              </button>
-            )}
-
-            {mode === 'sign_up' && (
-              <button
-                type="button"
-                onClick={() => { setMode('sign_in'); resetForm(); }}
-                className="w-full text-sm text-[#2D6A4F] hover:text-[#1B4332] hover:underline"
-              >
-                ¿Ya tiene cuenta? Iniciar sesión
-              </button>
-            )}
-
-            {mode === 'forgotten_password' && (
-              <button
-                type="button"
-                onClick={() => { setMode('sign_in'); resetForm(); }}
-                className="w-full text-sm text-[#2D6A4F] hover:text-[#1B4332] hover:underline"
-              >
-                Volver al inicio de sesión
-              </button>
-            )}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowResetInfo(!showResetInfo)}
+              className="w-full text-sm text-[#2D6A4F] hover:text-[#1B4332] hover:underline"
+            >
+              ¿Olvidó su contraseña?
+            </button>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,24 +1,23 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { AppLayout } from "@/components/layout/AppLayout";
-
-import Login from "@/pages/Login";
-import Index from "@/pages/Index";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Toaster } from "@/components/ui/toaster"
+import { Toaster as Sonner } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { AuthProvider } from "@/contexts/AuthContext"
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
+import { AppLayout } from "@/components/layout/AppLayout"
+import Login from "@/pages/Login"
+import Index from "@/pages/Index"
+import UserAdministration from "@/pages/UserAdministration"
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 2,
       retry: 1,
     },
   },
-});
+})
 
 function App() {
   return (
@@ -44,10 +43,19 @@ function App() {
                 }
               />
 
-              {/* Redirect root to main page */}
-              <Route path="/home" element={<Navigate to="/" replace />} />
+              {/* User Administration — only gerencial */}
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <UserAdministration />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
 
-              {/* Placeholder routes - will be implemented in future phases */}
+              {/* Placeholder routes */}
               <Route
                 path="/quotes"
                 element={
@@ -79,16 +87,6 @@ function App() {
                 }
               />
               <Route
-                path="/users"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <ComingSoon title="Usuarios" description="Gestión de usuarios y permisos del sistema" />
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/settings"
                 element={
                   <ProtectedRoute>
@@ -99,14 +97,13 @@ function App() {
                 }
               />
 
-              {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
-  );
+  )
 }
 
 function NotFound() {
@@ -120,7 +117,7 @@ function NotFound() {
         </a>
       </div>
     </div>
-  );
+  )
 }
 
 function ComingSoon({ title, description }: { title: string; description: string }) {
@@ -143,7 +140,7 @@ function ComingSoon({ title, description }: { title: string; description: string
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

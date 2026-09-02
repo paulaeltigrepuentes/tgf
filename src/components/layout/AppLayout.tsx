@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,17 +9,18 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
 interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  disabled?: boolean;
+  label: string
+  href: string
+  icon: React.ReactNode
+  disabled?: boolean
+  gerencialOnly?: boolean
 }
 
 const mainNavItems: NavItem[] = [
@@ -52,51 +53,41 @@ const mainNavItems: NavItem[] = [
     ),
     disabled: true,
   },
-];
-
-const adminNavItems: NavItem[] = [
   {
-    label: 'Usuarios',
+    label: 'Administración de usuarios',
     href: '/users',
+    gerencialOnly: true,
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
       </svg>
     ),
-    disabled: true,
   },
-  {
-    label: 'Configuración',
-    href: '/settings',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-    disabled: true,
-  },
-];
+]
 
 function SidebarContent() {
-  const location = useLocation();
+  const location = useLocation()
+  const { user, isGerencial } = useAuth()
+
+  const visibleNavItems = mainNavItems.filter(item => {
+    if (item.gerencialOnly && !isGerencial) return false
+    return true
+  })
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
+    const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
 
     if (item.disabled) {
       return (
         <div
           key={item.href}
-          className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed',
-          )}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed"
         >
           {item.icon}
           <span>{item.label}</span>
           <span className="ml-auto text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Próximamente</span>
         </div>
-      );
+      )
     }
 
     return (
@@ -113,8 +104,8 @@ function SidebarContent() {
         {item.icon}
         <span>{item.label}</span>
       </Link>
-    );
-  };
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -137,17 +128,12 @@ function SidebarContent() {
         <Separator className="bg-gray-200" />
       </div>
 
-      {/* Main Navigation */}
+      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <div className="mb-2 px-3">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Navegación</span>
         </div>
-        {mainNavItems.map(renderNavItem)}
-
-        <div className="pt-4 mb-2 px-3">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Administración</span>
-        </div>
-        {adminNavItems.map(renderNavItem)}
+        {visibleNavItems.map(renderNavItem)}
       </nav>
 
       {/* Footer */}
@@ -159,16 +145,29 @@ function SidebarContent() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { user, signOut } = useAuth()
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
 
-  const userInitials = user?.email
-    ? user.email.substring(0, 2).toUpperCase()
-    : '??';
+  const userInitials = user?.full_name
+    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.username?.slice(0, 2).toUpperCase() ?? '??'
+
+  const roleBadge: Record<string, string> = {
+    gerencial: 'bg-[#D4A017]/10 text-[#D4A017]',
+    pricing: 'bg-blue-50 text-blue-600',
+    comercial: 'bg-emerald-50 text-emerald-600',
+    logistica: 'bg-purple-50 text-purple-600',
+  }
+  const roleLabel: Record<string, string> = {
+    gerencial: 'Gerencia',
+    pricing: 'Pricing',
+    comercial: 'Comercial',
+    logistica: 'Logística',
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -186,9 +185,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex-1 md:pl-64 flex flex-col min-h-screen">
-        {/* Top Header */}
+        {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
-          {/* Mobile menu button */}
           <button
             className="md:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700"
             onClick={() => setIsMobileOpen(true)}
@@ -198,7 +196,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </svg>
           </button>
 
-          {/* Page title area */}
           <div className="flex-1 md:flex-none" />
 
           {/* User menu */}
@@ -210,9 +207,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     {userInitials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden sm:block text-sm font-medium text-gray-700">
-                  {user?.email}
-                </span>
+                <div className="hidden sm:flex flex-col items-start">
+                  <span className="text-sm font-medium text-gray-900">{user?.full_name}</span>
+                  <span className={cn(
+                    'text-xs px-1.5 py-0.5 rounded',
+                    roleBadge[user?.role?.name ?? ''] ?? 'bg-gray-100 text-gray-600'
+                  )}>
+                    {roleLabel[user?.role?.name ?? ''] ?? user?.role?.name}
+                  </span>
+                </div>
                 <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -221,12 +224,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-gray-900">{user?.email}</p>
-                  <p className="text-xs text-gray-500">Cuenta de usuario</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.username}</p>
+                  <p className="text-xs text-gray-500">{user?.full_name}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600 focus:text-red-600">
+              <DropdownMenuItem className="text-red-600 focus:text-red-600 cursor-pointer">
                 <button
                   onClick={() => signOut()}
                   className="flex items-center gap-2 w-full text-left"
@@ -241,11 +244,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1">
           {children}
         </main>
       </div>
     </div>
-  );
+  )
 }
