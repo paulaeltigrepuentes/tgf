@@ -14,97 +14,144 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import {
+  LayoutDashboard,
+  FileText,
+  History,
+  TrendingUp,
+  DollarSign,
+  Package,
+  CircleGauge,
+  Route,
+  ArrowLeftRight,
+  Percent,
+  Settings,
+  Users,
+  ChevronDown,
+  ChevronRight,
+  X,
+} from 'lucide-react'
 
 interface NavItem {
   label: string
   href: string
   icon: React.ReactNode
   disabled?: boolean
-  gerencialOnly?: boolean
 }
 
-const mainNavItems: NavItem[] = [
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+const navigationGroups: NavGroup[] = [
   {
-    label: 'Cotizaciones',
-    href: '/quotes',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-      </svg>
-    ),
+    title: 'Inicio',
+    items: [
+      {
+        label: 'Dashboard',
+        href: '/',
+        icon: <LayoutDashboard className="w-4 h-4" />,
+      },
+    ],
   },
   {
-    label: 'Clientes',
-    href: '/customers',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-      </svg>
-    ),
+    title: 'Cotizaciones',
+    items: [
+      {
+        label: 'Nueva cotización',
+        href: '/cotizaciones/nueva',
+        icon: <FileText className="w-4 h-4" />,
+      },
+      {
+        label: 'Historial de cotizaciones',
+        href: '/cotizaciones',
+        icon: <History className="w-4 h-4" />,
+      },
+    ],
   },
   {
-    label: 'Parámetros',
-    href: '/parameters',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.559.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.894.149c-.424.07-.765.383-.929.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-    disabled: true,
+    title: 'Análisis',
+    items: [
+      {
+        label: 'Rentabilidad',
+        href: '/analisis/rentabilidad',
+        icon: <TrendingUp className="w-4 h-4" />,
+      },
+      {
+        label: 'Análisis de costos',
+        href: '/analisis/costos',
+        icon: <DollarSign className="w-4 h-4" />,
+      },
+    ],
   },
   {
-    label: 'Administración de usuarios',
-    href: '/users',
-    gerencialOnly: true,
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-      </svg>
-    ),
+    title: 'Parámetros',
+    items: [
+      {
+        label: 'Productos',
+        href: '/parametros/productos',
+        icon: <Package className="w-4 h-4" />,
+      },
+      {
+        label: 'Calibres',
+        href: '/parametros/calibres',
+        icon: <CircleGauge className="w-4 h-4" />,
+      },
+      {
+        label: 'Rutas logísticas',
+        href: '/parametros/rutas',
+        icon: <Route className="w-4 h-4" />,
+      },
+      {
+        label: 'Tasas de cambio',
+        href: '/parametros/tasas',
+        icon: <ArrowLeftRight className="w-4 h-4" />,
+      },
+      {
+        label: 'Costos',
+        href: '/parametros/costos',
+        icon: <DollarSign className="w-4 h-4" />,
+      },
+      {
+        label: 'Márgenes',
+        href: '/parametros/margenes',
+        icon: <Percent className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    title: 'Administración',
+    items: [
+      {
+        label: 'Usuarios',
+        href: '/usuarios',
+        icon: <Users className="w-4 h-4" />,
+      },
+      {
+        label: 'Configuración',
+        href: '/configuracion',
+        icon: <Settings className="w-4 h-4" />,
+      },
+    ],
   },
 ]
 
-function SidebarContent() {
+function SidebarNav() {
   const location = useLocation()
-  const { user, isGerencial } = useAuth()
-
-  const visibleNavItems = mainNavItems.filter(item => {
-    if (item.gerencialOnly && !isGerencial) return false
-    return true
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    navigationGroups.forEach((group) => {
+      const hasActive = group.items.some(
+        (item) => item.href === '/' ? location.pathname === '/' : location.pathname.startsWith(item.href)
+      )
+      initial[group.title] = hasActive || group.title === 'Inicio'
+    })
+    return initial
   })
 
-  const renderNavItem = (item: NavItem) => {
-    const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
-
-    if (item.disabled) {
-      return (
-        <div
-          key={item.href}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed"
-        >
-          {item.icon}
-          <span>{item.label}</span>
-          <span className="ml-auto text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Próximamente</span>
-        </div>
-      )
-    }
-
-    return (
-      <Link
-        key={item.href}
-        to={item.href}
-        className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-          isActive
-            ? 'bg-[#2D6A4F] text-white'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
-        )}
-      >
-        {item.icon}
-        <span>{item.label}</span>
-      </Link>
-    )
+  const toggleGroup = (title: string) => {
+    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }))
   }
 
   return (
@@ -129,11 +176,65 @@ function SidebarContent() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <div className="mb-2 px-3">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Navegación</span>
-        </div>
-        {visibleNavItems.map(renderNavItem)}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {navigationGroups.map((group) => {
+          const isOpen = openGroups[group.title] ?? true
+          return (
+            <div key={group.title} className="mb-4">
+              <button
+                onClick={() => toggleGroup(group.title)}
+                className="flex items-center justify-between w-full px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
+              >
+                <span>{group.title}</span>
+                {isOpen ? (
+                  <ChevronDown className="w-3 h-3" />
+                ) : (
+                  <ChevronRight className="w-3 h-3" />
+                )}
+              </button>
+              {isOpen && (
+                <div className="mt-1 space-y-0.5">
+                  {group.items.map((item) => {
+                    const isActive = item.href === '/'
+                      ? location.pathname === '/'
+                      : location.pathname.startsWith(item.href)
+
+                    if (item.disabled) {
+                      return (
+                        <div
+                          key={item.href}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed"
+                        >
+                          {item.icon}
+                          <span>{item.label}</span>
+                          <span className="ml-auto text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                            Pronto
+                          </span>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={cn(
+                          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-[#2D6A4F] text-white'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        )}
+                      >
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </nav>
 
       {/* Footer */}
@@ -153,7 +254,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   const userInitials = user?.full_name
-    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    ? user.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.username?.slice(0, 2).toUpperCase() ?? '??'
 
   const roleBadge: Record<string, string> = {
@@ -172,19 +273,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-40">
-        <SidebarContent />
+      <aside className="hidden md:flex w-60 flex-col bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-40">
+        <SidebarNav />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <SidebarContent />
+        <SheetContent side="left" className="w-60 p-0">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#2D6A4F] flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#D4A017]" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+              </div>
+              <div>
+                <span className="font-bold text-sm text-[#1B4332]">ColCom</span>
+                <span className="font-bold text-sm text-[#D4A017]">Trade</span>
+              </div>
+            </div>
+            <button onClick={() => setIsMobileOpen(false)} className="p-1 text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <SidebarNav />
         </SheetContent>
       </Sheet>
 
       {/* Main Content */}
-      <div className="flex-1 md:pl-64 flex flex-col min-h-screen">
+      <div className="flex-1 md:pl-60 flex flex-col min-h-screen">
         {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30">
           <button
@@ -208,12 +325,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-medium text-gray-900">{user?.full_name}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {user?.full_name ?? 'Usuario desarrollo'}
+                  </span>
                   <span className={cn(
                     'text-xs px-1.5 py-0.5 rounded',
                     roleBadge[user?.role?.name ?? ''] ?? 'bg-gray-100 text-gray-600'
                   )}>
-                    {roleLabel[user?.role?.name ?? ''] ?? user?.role?.name}
+                    {roleLabel[user?.role?.name ?? ''] ?? user?.role?.name ?? 'Desarrollo'}
                   </span>
                 </div>
                 <svg className="w-4 h-4 text-gray-400 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -224,8 +343,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                  <p className="text-xs text-gray-500">{user?.full_name}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.username ?? 'dev_user'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.full_name ?? 'Modo desarrollo'}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
