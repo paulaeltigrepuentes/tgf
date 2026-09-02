@@ -31,15 +31,13 @@ function App() {
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
 
-              {/* Protected routes */}
+              {/* TEMP: ruta raíz renderiza Index sin auth, solo para esta etapa de desarrollo */}
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <Index />
-                    </AppLayout>
-                  </ProtectedRoute>
+                  <AppLayout>
+                    <Index />
+                  </AppLayout>
                 }
               />
 
